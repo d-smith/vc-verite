@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "./IVerificationRegistry.sol";
 
 contract VerificationRegistry is EIP712, Ownable,IVerificationRegistry {
-    constructor(address initialOwner) EIP712("test", "1.0") Ownable(initialOwner) { }
+    constructor(address initialOwner) EIP712("VerificationRegistry", "1.0") Ownable(initialOwner) { }
 
     // Verifier addresses mapped to metadata (VerifierInfo) about the Verifiers.
     mapping(address => VerifierInfo) private _verifiers;
