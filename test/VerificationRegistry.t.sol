@@ -2,7 +2,7 @@ pragma solidity ^0.8.20;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {VerificationRegistry} from "../src/VerificationRegistry.sol";
+import {VerificationRegistry, VerificationResult} from "../src/VerificationRegistry.sol";
 import {VerifierInfo} from "../src/VerificationRegistry.sol";
 
 contract VerificationRegistryTest is Test {
@@ -46,6 +46,15 @@ contract VerificationRegistryTest is Test {
         assertEq(info.did, "did:example:owner");
         assertEq(info.url, "https://example.com/owner");
         assertEq(info.signer, owner);
+    }
+
+    function testVerify() public {
+        bytes memory signature;
+
+        vm.expectRevert();
+        registry.registerVerification(VerificationResult(
+            "circle.com/credentials/kyc", subject, vm.getBlockTimestamp() + 300
+        ), signature);
     }
 
 }
