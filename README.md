@@ -12,3 +12,5 @@ Installing open zeppelin contracts
 
 Article on EIP712 - https://medium.com/metamask/eip712-is-coming-what-to-expect-and-how-to-use-it-bb92fd1a7a26
 
+
+Adding hardhat support to the project - digestFromContract
