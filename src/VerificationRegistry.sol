@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 import "./IVerificationRegistry.sol";
 
+
+
 contract VerificationRegistry is EIP712, Ownable,IVerificationRegistry {
     constructor(address initialOwner) EIP712("VerificationRegistry", "1.0") Ownable(initialOwner) { }
 
@@ -184,6 +186,7 @@ function _validateVerificationResult(
         verificationResult.subject,
         verificationResult.expiration
     )));
+
 
     // recover the public address corresponding to the signature and regenerated hash
     address signerAddress = ECDSA.recover(digest, signature);

@@ -2,6 +2,9 @@
 
 Verifiable credentials examples using Circle [Verite](https://developers.circle.com/verite/docs/introducing-verite)
 
+This example creates and tests a verification registry as presented in the Circle docs, and uses it with an ERC20 token that
+has been extended to verify transfer destinations against a KYC registry.
+
 
 ## Misc
 

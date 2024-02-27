@@ -1,67 +1,63 @@
+
 pragma solidity ^0.8.20;
 
-import {Test, console2} from "forge-std/Test.sol";
 
+import {Test, console2} from "forge-std/Test.sol";
+import {KYCToken} from "../src/KYCToken.sol";
+import {VerificationRegistry,VerifierInfo,VerificationResult,VerificationRecord} from "../src/VerificationRegistry.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import {VerificationRegistry, VerificationResult, VerificationRecord} from "../src/VerificationRegistry.sol";
-import {VerifierInfo} from "../src/VerificationRegistry.sol";
-
-contract VerificationRegistryTest is Test {
-    VerificationRegistry public registry;
+contract KYCTokenTest is Test {
+    KYCToken public token;
     address public owner;
-    address public signer;
-    address public subject;
+    address known;
+    address unknown;
+    address signer;
+    uint256 signerKey = 100;
+    VerificationRegistry public registry;
+
+    function stringToBytes32(string memory source) public pure returns (bytes32 result) {
+        bytes memory tempEmptyStringTest = bytes(source);
+        if (tempEmptyStringTest.length == 0) {
+            return 0x0;
+        }
+
+        assembly {
+            result := mload(add(source, 32))
+        }
+    }
 
     function setUp() public {
         owner = vm.addr(1);
-        signer = vm.addr(2);
-        subject = vm.addr(3);
+        known = vm.addr(2);
+        unknown = vm.addr(3);
+        signer = vm.addr(signerKey);
 
-        vm.prank(owner);
+        vm.startPrank(owner);
+
         registry = new VerificationRegistry(owner);
+        token = new KYCToken(owner,registry);
+
+        vm.stopPrank();
+
     }
 
     function testOwner() public {
+        assertEq(token.owner(), owner);
         assertEq(registry.owner(), owner);
     }
 
-    function testNoVerifierYet() public {
-        assertEq(registry.getVerifierCount(), 0);
-
-        assertFalse(registry.isVerifier(owner));
-
-        vm.expectRevert("VerificationRegistry: Unknown Verifier Address");
-        registry.getVerifier(owner);
+    function testInitialSupply() public {
+        assertEq(token.balanceOf(owner), 100000000 * 10 ** token.decimals());
     }
 
-    function testAddVerifier() public {
+    function testCannotSendToUnknown() public {
+        vm.expectRevert("Destination account is not KYC'd");
         vm.prank(owner);
-        registry.addVerifier(owner, VerifierInfo("ContactOwner", "did:example:owner", "https://example.com/owner", owner));
-
-        assertEq(registry.getVerifierCount(), 1);
-        assertTrue(registry.isVerifier(owner));
-        assertFalse(registry.isVerified(owner));
-
-        VerifierInfo memory info = registry.getVerifier(owner);
-        assertEq(info.name, "ContactOwner");
-        assertEq(info.did, "did:example:owner");
-        assertEq(info.url, "https://example.com/owner");
-        assertEq(info.signer, owner);
+        token.transfer(unknown, 100);
     }
 
-        function stringToBytes32(string memory source) public pure returns (bytes32 result) {
-            bytes memory tempEmptyStringTest = bytes(source);
-            if (tempEmptyStringTest.length == 0) {
-                return 0x0;
-            }
- 
-            assembly {
-                result := mload(add(source, 32))
-            }
-        }
-
-    function testVerify() public {
+    function testCanSendToKYC() public {
         bytes memory signature;
         uint256 expiration = block.timestamp + 300;
 
@@ -86,7 +82,7 @@ contract VerificationRegistryTest is Test {
         bytes32 VERIFICATION_RESULT_TYPE_HASH = keccak256("VerificationResult(string schema,address subject,uint256 expiration)");
         bytes32 verificationResultHash = keccak256(abi.encode(VERIFICATION_RESULT_TYPE_HASH, 
             keccak256(bytes("circle.com/credentials/kyc")), 
-            subject, 
+            known, 
             expiration));
 
         // Build the digest
@@ -98,7 +94,7 @@ contract VerificationRegistryTest is Test {
  
         // Sign the digest
         vm.startPrank(signer);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(2, digest);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, digest);
         vm.stopPrank();
 
         signature = abi.encodePacked(r, s, v);
@@ -108,21 +104,26 @@ contract VerificationRegistryTest is Test {
         assertEq(recovered, signer);
 
         registry.registerVerification(VerificationResult(
-            "circle.com/credentials/kyc", subject, expiration),
+            "circle.com/credentials/kyc", known, expiration),
         signature);
 
         assertEq(registry.getVerificationCount(), 1);
 
-        VerificationRecord[] memory verrifications = registry.getVerificationsForSubject(subject);
+        VerificationRecord[] memory verrifications = registry.getVerificationsForSubject(known);
         assertEq(verrifications.length, 1);
 
         bytes32 uuid = verrifications[0].uuid;
         VerificationRecord memory record = registry.getVerification(uuid);
         assertEq(record.uuid, uuid);
 
-        assertTrue(registry.isVerified(subject));
+        assertTrue(registry.isVerified(known));
 
-        vm.stopPrank();
+       
+        token.transfer(known, 100);
+        assertEq(token.balanceOf(known), 100);
+
+         vm.stopPrank();
     }
+
 
 }
