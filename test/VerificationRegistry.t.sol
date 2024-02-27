@@ -2,6 +2,8 @@ pragma solidity ^0.8.20;
 
 import {Test, console2} from "forge-std/Test.sol";
 
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
 import {VerificationRegistry, VerificationResult} from "../src/VerificationRegistry.sol";
 import {VerifierInfo} from "../src/VerificationRegistry.sol";
 
@@ -48,13 +50,67 @@ contract VerificationRegistryTest is Test {
         assertEq(info.signer, owner);
     }
 
+        function stringToBytes32(string memory source) public pure returns (bytes32 result) {
+        bytes memory tempEmptyStringTest = bytes(source);
+        if (tempEmptyStringTest.length == 0) {
+            return 0x0;
+        }
+
+        assembly {
+            result := mload(add(source, 32))
+        }
+    }
+
     function testVerify() public {
         bytes memory signature;
+        uint256 expiration = block.timestamp + 300;
 
-        vm.expectRevert();
+        // Register a verifier
+        vm.startPrank(owner);
+
+        registry.addVerifier(owner, VerifierInfo(
+            stringToBytes32("VerificationRegistry"), "did:verificationregistry:contract", "https://example.com/owner", signer));
+
+        assertEq(registry.getVerifierCount(), 1);
+        vm.stopPrank();
+
+        // Create the domain separator
+        bytes32 TYPE_HASH =
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        bytes32 domainSeparator = keccak256(abi.encode(TYPE_HASH, 
+                        keccak256(bytes("VerificationRegistry")), 
+                        keccak256(bytes("1.0")), 
+                        block.chainid, address(registry)));
+
+        // Build the structure hash
+        bytes32 VERIFICATION_RESULT_TYPE_HASH = keccak256("VerificationResult(string schema,address subject,uint256 expiration)");
+        bytes32 verificationResultHash = keccak256(abi.encode(VERIFICATION_RESULT_TYPE_HASH, 
+            keccak256(bytes("circle.com/credentials/kyc")), 
+            subject, 
+            expiration));
+
+        // Build the digest
+        bytes32 digest = keccak256(abi.encodePacked(
+            "\x19\x01",
+            domainSeparator,
+            verificationResultHash
+        ));
+ 
+        // Sign the digest
+        vm.startPrank(signer);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(2, digest);
+        vm.stopPrank();
+
+        signature = abi.encodePacked(r, s, v);
+
+        vm.startPrank(owner);
+        address recovered = ECDSA.recover(digest, signature);
+        assertEq(recovered, signer);
+
+        //vm.expectRevert();
         registry.registerVerification(VerificationResult(
-            "circle.com/credentials/kyc", subject, vm.getBlockTimestamp() + 300
-        ), signature);
+            "circle.com/credentials/kyc", subject, expiration),
+        signature);
     }
 
 }
