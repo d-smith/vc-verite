@@ -4,7 +4,7 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import {VerificationRegistry, VerificationResult} from "../src/VerificationRegistry.sol";
+import {VerificationRegistry, VerificationResult, VerificationRecord} from "../src/VerificationRegistry.sol";
 import {VerifierInfo} from "../src/VerificationRegistry.sol";
 
 contract VerificationRegistryTest is Test {
@@ -107,10 +107,20 @@ contract VerificationRegistryTest is Test {
         address recovered = ECDSA.recover(digest, signature);
         assertEq(recovered, signer);
 
-        //vm.expectRevert();
         registry.registerVerification(VerificationResult(
             "circle.com/credentials/kyc", subject, expiration),
         signature);
+
+        assertEq(registry.getVerificationCount(), 1);
+
+        VerificationRecord[] memory verrifications = registry.getVerificationsForSubject(subject);
+        assertEq(verrifications.length, 1);
+
+        bytes32 uuid = verrifications[0].uuid;
+        VerificationRecord memory record = registry.getVerification(uuid);
+        assertEq(record.uuid, uuid);
+
+        vm.stopPrank();
     }
 
 }
