@@ -1,0 +1,5 @@
+jupyter
+requests
+web3
+eip712-structs
+eth_abi

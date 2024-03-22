@@ -27,4 +27,8 @@ contract KYCToken is ERC20, ERC20Burnable, Ownable {
         require(_verifiableRegistry.isVerified(to), "Destination account is not KYC'd");
         return super.transfer(to, amount);
     }
+
+    function registryAddress() public view returns (address) {
+        return address(_verifiableRegistry);
+    }
 }
